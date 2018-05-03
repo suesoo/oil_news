@@ -8,7 +8,7 @@
 import scrapy
 
 
-class Bloomberg(scrapy.Item):
+class OilNewsItem(scrapy.Item):
     # define the fields for your item here like:
     title = scrapy.Field()
     datetime = scrapy.Field()
@@ -16,8 +16,3 @@ class Bloomberg(scrapy.Item):
     link = scrapy.Field()
     contest = scrapy.Field()
 
-
-class OilNewsItem(scrapy.Item):
-    # define the fields for your item here like:
-    # name = scrapy.Field()
-    pass

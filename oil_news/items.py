@@ -14,5 +14,5 @@ class OilNewsItem(scrapy.Item):
     datetime = scrapy.Field()
     brief = scrapy.Field()
     link = scrapy.Field()
-    contest = scrapy.Field()
+    content = scrapy.Field()
 

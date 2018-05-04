@@ -64,25 +64,43 @@ class InfoSpider(scrapy.Spider):
     def __init__(self):
         scrapy.Spider.__init__(self)
         self.browser = webdriver.Chrome(executable_path="C:\\Users\\suesoo\\oil_news\\oil_news\\chromedriver.exe")
+        self.item_list = []
 
     def parse(self, response):
         self.browser.get(response.url)
-        time.sleep(10)
+        time.sleep(5)
         # html = self.browser.find_element_by_xpath('//*[@id="article_list"]/div[2]/ul/li/a/').get_attribute('outerHTML')
-        html = self.browser.find_element_by_xpath('//*[@id="article_list"]/div[2]/ul').get_attribute('outerHTML')
+        html = self.browser.find_element_by_xpath('//*').get_attribute('outerHTML')
         selector = Selector(text=html)
-        # print('-----selector------', selector)
-        # news_list = selector.xpath('//*[@id="article_list"]/div[2]/ul/li/a/')
-        # print('---------------', len(news_list))
-        # for news in news_list:
-        #     print('---------------')
-        #     item = Item()
-        #     item['title'] = news.xpath('span[1]/text()').extract()
-        #     item['datetime'] = news.xpath('span[2]/span[2]/text()').extract()
-        #     item['brief'] = news.xpath('span[2]/span[1]/text()').extract()
-        #     # item['link'] = news.xpath('@href').extract()
-        #     print('---------------', item['title'])
-        #     yield item
+        news_list = selector.xpath('//*[@id="article_list"]/div[2]/ul/li')
+        for news in news_list:
+            print('---------------')
+            item = Item()
+            item['title'] = news.xpath('a/span[1]/text()').extract()
+            item['datetime'] = news.xpath('a/span[2]/span[2]/text()').extract()
+            item['brief'] = news.xpath('a/span[2]/span[1]/text()').extract()
+            item['link'] = news.xpath('a/@href').extract()
+            self.item_list.append(item)
+            # print('---------------', item['title'])
+            # yield item
+
+        for a_item in self.item_list:
+            url = a_item['link'][0]
+            print('-------------url:', url)
+            self.browser.get(url)
+            time.sleep(5)
+            html = self.browser.find_element_by_xpath('//*[@id="articleWrap"]/div[2]').get_attribute('outerHTML')
+            a_item['content'] = html
+            contents = Selector(text=html)
+            briefs = contents.xpath('//*[@id="articleWrap"]/div[2]/p')
+            con_text = ''
+            for i, brief in enumerate(briefs):
+                if i < 2:
+                    con_text += contents.xpath('/text()').extract()
+            item['brief'] = con_text
+            print('--------- item[brief]:', item['brief'])
+            yield a_item
+
         # self.browser.quit()
 
 

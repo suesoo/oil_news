@@ -10,6 +10,7 @@ import scrapy
 
 class OilNewsItem(scrapy.Item):
     # define the fields for your item here like:
+    company = scrapy.Field()
     title = scrapy.Field()
     datetime = scrapy.Field()
     brief = scrapy.Field()

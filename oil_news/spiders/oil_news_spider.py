@@ -74,8 +74,8 @@ class InfoSpider(scrapy.Spider):
         selector = Selector(text=html)
         news_list = selector.xpath('//*[@id="article_list"]/div[2]/ul/li')
         for news in news_list:
-            print('---------------')
             item = Item()
+            item['company'] = 'yonhap'
             item['title'] = news.xpath('a/span[1]/text()').extract()
             item['datetime'] = news.xpath('a/span[2]/span[2]/text()').extract()
             item['brief'] = news.xpath('a/span[2]/span[1]/text()').extract()

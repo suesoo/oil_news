@@ -6,6 +6,7 @@ from scrapy.exporters import JsonItemExporter, CsvItemExporter
 # from scrapy.exceptions import DropItem
 # from scrapy import log
 from mysql.connector import connection
+from w3lib.html import remove_tags, remove_tags_with_content
 
 # Define your item pipelines here
 #
@@ -37,7 +38,7 @@ class BBCsvPipeline(object):
 class MySqlPipeline(object):
 
     def __init__(self):
-        self.conn = connection.MySQLConnection(host='130.1.12.38', user='bunker', password='cost', database='oil_news')
+        self.conn = connection.MySQLConnection(host='130.1.12.241', user='root', password='!pan123', database='oil_news')
         self.cursor = self.conn.cursor()
         print('db connection success1')
 
@@ -54,7 +55,7 @@ class MySqlPipeline(object):
 
         title = ''
         for word in item['title']:
-            title += word
+            title += remove_tags(word)
         print('---------title:', title)
 
         link = ''
@@ -62,16 +63,22 @@ class MySqlPipeline(object):
             link += word
         print('---------link:', link)
 
-        brief = ''
-        for word in item['brief']:
-            brief += word
-        print('---------brief:', brief)
+
+        # for word in item['brief']:
+        #     brief += word
+        # brief = remove_tags(brief)
+        # print('---------brief:', brief)
 
         content = ''
         for word in item['content']:
             content += word
-        print('---------content:', content)
+        content = remove_tags(remove_tags_with_content(content, ('script',)))
+        content = content.replace('   ', '')
+        content = content.replace('\t', '')
+        content = content.replace('\n\n', '\n')
 
+        brief = content[:300]
+        brief += '......'
         args = (item['company'], title, datetime, link, brief, content)
         query = """INSERT INTO local (company, title, issue_date, link, brief, contents) VALUES (%s, %s, %s, %s, %s, %s)"""
         self.cursor.execute(query, args)

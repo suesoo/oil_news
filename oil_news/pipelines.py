@@ -5,11 +5,14 @@ from scrapy.exporters import JsonItemExporter, CsvItemExporter
 # from scrapy.conf import settings
 # from scrapy.exceptions import DropItem
 # from scrapy import log
-from mysql.connector import connection
+from mysql.connector import connection, Error
 from w3lib.html import remove_tags, remove_tags_with_content
+import logging
+import datetime
+
+logging.basicConfig(filename='/home/bunker/scraping/oil_news/log/log.txt', level=logging.DEBUG)
 
 # Define your item pipelines here
-#
 # Don't forget to add your pipeline to the ITEM_PIPELINES setting
 # See: https://doc.scrapy.org/en/latest/topics/item-pipeline.html
 
@@ -47,22 +50,23 @@ class MySqlPipeline(object):
         self.conn.close()
 
     def process_item(self, item, spider):
+        print('==================spider.name:', spider.name)
         # try:
-        datetime = ''
+        issue_datetime = ''
         for word in item['datetime']:
-            datetime += word
-        print('---------title:', datetime)
+            issue_datetime += word
+        print('---------title:', issue_datetime)
 
         title = ''
         for word in item['title']:
             title += remove_tags(word)
+        title = title.strip()
         print('---------title:', title)
 
         link = ''
         for word in item['link']:
             link += word
         print('---------link:', link)
-
 
         # for word in item['brief']:
         #     brief += word
@@ -79,13 +83,25 @@ class MySqlPipeline(object):
 
         brief = content[:300]
         brief += '......'
-        args = (item['company'], title, datetime, link, brief, content)
-        query = """INSERT INTO local (company, title, issue_date, link, brief, contents) VALUES (%s, %s, %s, %s, %s, %s)"""
-        self.cursor.execute(query, args)
-        self.conn.commit()
+
+        this_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')
+        args = (item['company'], title, issue_datetime, link, brief, content, this_time)
+
+        if spider.name in ['info', 'ed']:
+            query = """INSERT INTO local (company, title, issue_date, link, brief, contents, record_date) 
+                         VALUES(%s, %s, %s, %s, %s, %s, %s)"""
+        elif spider.name in ['bb', 'rt']:
+            query = """INSERT INTO abroad (company, title, issue_date, link, brief, contents, record_date) 
+                         VALUES(%s, %s, %s, %s, %s, %s, %s)"""
+        try:
+            self.cursor.execute(query, args)
+            self.conn.commit()
+        except Error as err:
+            if err.args[0] == 1062:
+                print('news already stored!')
+            else:
+                print("Error %d: %s" % (err.args[0], err.args[1]))
         return item
-        # except errorcode, e:
-        #     print "Error %d: %s" % (e.args[0], e.args[1])
 
 
     # def process_item(self, item, spider):

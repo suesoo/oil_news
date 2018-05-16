@@ -2,56 +2,100 @@ import scrapy
 from scrapy.selector import Selector
 from oil_news.items import OilNewsItem as Item
 from selenium import webdriver
-import csv
 import time
 
 
+page_time_delay = 5
+
+
 class BloombergSpider(scrapy.Spider):
-    name = 'bloomberg'
+    name = 'bb'
     allowed_domains = ['https://www.bloomberg.com/']
     start_urls = [
         'https://www.bloomberg.com/search?query=wti+brent'
     ]
-    # def start_requests(self):
-    #     with open('bloombergcsv') as csv_file:
-    #         reader = csv.DictReader(csv_file)
-    #         for row in reader:
-    #             yield scrapy.Request(row['url'], self.parse_news)
+
+    def __init__(self):
+        scrapy.Spider.__init__(self)
+        self.browser = webdriver.Chrome(executable_path="/home/bunker/scraping/oil_news/oil_news/chromedriver")
+        self.item_list = []
 
     def parse(self, response):
         news_list = response.xpath('// *[ @ id = "content"] / div / section / section[2] / section[1] / div[3] / div / article / div[1]')
         print('len news list: ',  len(news_list))
         for news in news_list:
             item = Item()
-            # item['source'] = sel.xpath('strong/span[@class="info_news"]/text()').extract()[0]
-            # item['category'] = '정치'
+            item['company'] = 'bloomberg'
             item['title'] = news.xpath('h1/a/text()').extract()
             item['datetime'] = news.xpath('div[1]/span[2]/time/text()').extract()
             item['brief'] = news.xpath('div[2]/text()').extract()
-            item['link'] = news.xpath('h1/a/@href').extract()
-            yield item
+            item['link'] = news.xpath('h1/a/@href').extract()[0]
+            item['content'] = 'test content'
+            self.item_list.append(item)
+
+        for a_item in self.item_list:
+            url = a_item['link']
+            self.browser.get(url)
+            time.sleep(page_time_delay)
+            news_contents = []
+            html = self.browser.find_element_by_xpath('//article').get_attribute('outerHTML')
+            selector = Selector(text=html)
+            news_contents += selector.xpath('//h1').extract()
+
+            news_1 = selector.xpath('//section').extract()[0]
+            selector = Selector(text=news_1)
+            news_contents += selector.xpath('//li/div').extract()
+            news_contents += selector.xpath('//p').extract()
+            a_item['content'] = news_contents
+            yield a_item
 
 
 class ReutersSpider(scrapy.Spider):
     name = 'rt'
     allowed_domains = ['reuters.com']
     start_urls = [
-        'https://www.reuters.com/search/news?blob=crude oil'
+        'https://www.reuters.com/search/news?sortBy=&dateRange=&blob=oil'
     ]
 
+    def __init__(self):
+        scrapy.Spider.__init__(self)
+        self.browser = webdriver.Chrome(executable_path="/home/bunker/scraping/oil_news/oil_news/chromedriver")
+        self.item_list = []
+
     def parse(self, response):
-        news_list = response.xpath('//*[@id="content"]/section[2]/div/div[1]/div[4]/div/div[3]/div')
+        news_list = response.xpath('/html/body/div[3]/section[2]/div/div[1]/div[4]/div/div[3]/div').extract()
         for news in news_list:
             item = Item()
-            # item['source'] = sel.xpath('strong/span[@class="info_news"]/text()').extract()[0]
-            # item['category'] = '정치'
-            item['title'] = news.xpath('div/h3/a/text()').extract()
-            item['datetime'] = news.xpath('div/h5/text()').extract()
-            item['brief'] = news.xpath('div/div/text()').extract()
-            item['link'] = news.xpath('div/h3/a/@href').extract()
-            if 'BRIEF' in item['title']:
+            selector = Selector(text=news)
+            item['company'] = 'reuters'
+            title = ''
+            for word in selector.xpath('//a/text()').extract():
+                title += word
+            if 'BRIEF' in title:
                 continue
-            yield item
+            if 'VIDEO RESULTS' in title:
+                continue
+
+            item['title'] = title
+            item['datetime'] = selector.xpath('//h5/text()').extract()
+            # item['brief'] = news.xpath('div/div/text()').extract()
+            item['link'] = 'https://www.reuters.com'+selector.xpath('//a/@href').extract()[0]
+            self.item_list.append(item)
+
+        for a_item in self.item_list:
+            url = a_item['link']
+            self.browser.get(url)
+            time.sleep(page_time_delay)
+            html = self.browser.find_element_by_xpath('/html').get_attribute('outerHTML')
+            selector = Selector(text=html)
+            news_contents = selector.xpath('//h1').extract()[0]
+            news = ''
+            for word in selector.xpath('//p').extract():
+                news += word
+            news_contents += news
+            a_item['content'] = news_contents
+            yield a_item
+        self.browser.quit()
 
 
 class InfoSpider(scrapy.Spider):
@@ -68,75 +112,67 @@ class InfoSpider(scrapy.Spider):
 
     def parse(self, response):
         self.browser.get(response.url)
-        time.sleep(4)
-        # html = self.browser.find_element_by_xpath('//*[@id="article_list"]/div[2]/ul/li/a/').get_attribute('outerHTML')
+        time.sleep(page_time_delay)
         html = self.browser.find_element_by_xpath('//*').get_attribute('outerHTML')
         selector = Selector(text=html)
         news_list = selector.xpath('//*[@id="article_list"]/div[2]/ul/li')
+
         for news in news_list:
             item = Item()
             item['company'] = 'yonhap'
             item['title'] = news.xpath("a/span[1]").extract()
             item['datetime'] = news.xpath('a/span[2]/span[2]/text()').extract()
             # item['brief'] = news.xpath('a/span[2]/span[1]/text()').extract()
-            item['link'] = news.xpath('a/@href').extract()
+            item['link'] = news.xpath('a/@href').extract()[0]
             self.item_list.append(item)
-            # print('---------------', item['title'])
-            # yield item
 
         for a_item in self.item_list:
-            url = a_item['link'][0]
-            print('-------------url:', url)
+            url = a_item['link']
             self.browser.get(url)
-            time.sleep(5)
+            time.sleep(page_time_delay)
             html = self.browser.find_element_by_xpath('//*[@id="articleWrap"]/div[2]').get_attribute('outerHTML')
             a_item['content'] = html
-            html = self.browser.find_element_by_xpath('//*').get_attribute('outerHTML')
-            contents = Selector(text=html)
-            # briefs = contents.xpath('//*[@id="articleWrap"]/div[2]/p')
-            # con_text = ''
-            # i = 0
-            # for brief in briefs:
-            #     if i < 2:
-            #         p = brief.extract()
-            #         print('*********p***********', p)
-            #         con_text += p
-            #         i += 1
-            #
-            #     else:
-            #         break
-                #
-                #     if p != "":
-                #         con_text += p
-                #         i += 1
-                #     else:
-                #         print('p=____')
-                # else:
-                #     i=0
-                #     break
-            # a_item['brief'] = con_text
-            # print('--------- item[brief]:', a_item['brief'])
             yield a_item
-
-        # self.browser.quit()
+        self.browser.quit()
 
 
 class eDailySpider(scrapy.Spider):
-    name = 'edaily'
-    allowed_domains = ['edaily.co.kr/']
+    name = 'ed'
+    allowed_domains = ['www.edaily.co.kr']
     start_urls = [
-        'http://www.edaily.co.kr/search/E00.html?searchvalue=wti'
+        'http://www.edaily.co.kr/search/E00.html?searchvalue=%EA%B5%AD%EC%A0%9C%EC%9C%A0%EA%B0%80%20%26%20wti'
     ]
 
+    def __init__(self):
+        scrapy.Spider.__init__(self)
+        self.browser = webdriver.Chrome(executable_path="/home/bunker/scraping/oil_news/oil_news/chromedriver")
+        self.item_list = []
+
     def parse(self, response):
-        news_list = response.xpath('//*[@id="component_template_id_SEARCH_NEWS_SuVAlKkwWDwNcx7"]/div[1]/div/div[2]/ul/li/a/div/strong')
-        print('---------------', len(news_list))
-        for news in news_list:
-            print('---------------')
+        self.browser.get(response.url)
+        time.sleep(page_time_delay)
+        html = self.browser.find_element_by_xpath('/html/body/section/div/div/div[1]/div/div[4]/div/div[1]/div[1]/div/div[2]/ul').get_attribute('outerHTML')
+        selector = Selector(text=html)
+        for news in selector.xpath('//li'):
             item = Item()
-            item['title'] = news.xpath('div/strong').extract()
-            # item['datetime'] = news.xpath('span[2]/span[2]/text()').extract()
-            item['brief'] = news.xpath('div/text()').extract()
-            # item['link'] = news.xpath('@href').extract()
-            print('---------------', item['title'])
+            item['company'] = 'eDaily'
+            item['title'] = news.xpath('//strong').extract()
+            item['datetime'] = news.xpath('//span[3]/text()').extract()
+            # item['brief'] = news.xpath('div/text()').extract()
+            item['link'] = news.xpath('//a/@href').extract()[0]
+            item['content'] = 'tstest'
+            print('-------item llll--------', item)
             yield item
+
+    # news_list = response.xpath('/html/body/section')
+        # title = news_list.xpath('//strong').extract()
+        # print('_________news title______-----------------', title)
+        # for news in news_list:
+        #     item = Item()
+        #     item['company'] = 'eDaily'
+        #     item['title'] = news.xpath('//strong').extract()
+        #     item['datetime'] = news.xpath('/a/div/div[2]/div/span[3]/text()').extract()
+        #     # item['brief'] = news.xpath('div/text()').extract()
+        #     # item['link'] = news.xpath('@href').extract()
+        #     print('-------item llll--------', item)
+        #     yield item

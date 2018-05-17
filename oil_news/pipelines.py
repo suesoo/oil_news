@@ -76,11 +76,13 @@ class MySqlPipeline(object):
         content = ''
         for word in item['content']:
             content += word
+        # content = content.replace('</p>', '\n')
         content = remove_tags(remove_tags_with_content(content, ('script',)))
         content = content.replace('   ', '')
         content = content.replace('\t', '')
         content = content.replace('\n\n', '\n')
-
+        content = content.replace('&nbsp;', ' ')
+        content = content.replace('&amp;', '')
         brief = content[:300]
         brief += '......'
 

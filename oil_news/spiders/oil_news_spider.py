@@ -122,7 +122,6 @@ class InfoSpider(scrapy.Spider):
             item['company'] = 'yonhap'
             item['title'] = news.xpath("a/span[1]").extract()
             item['datetime'] = news.xpath('a/span[2]/span[2]/text()').extract()
-            # item['brief'] = news.xpath('a/span[2]/span[1]/text()').extract()
             item['link'] = news.xpath('a/@href').extract()[0]
             self.item_list.append(item)
 
@@ -147,32 +146,42 @@ class eDailySpider(scrapy.Spider):
         scrapy.Spider.__init__(self)
         self.browser = webdriver.Chrome(executable_path="/home/bunker/scraping/oil_news/oil_news/chromedriver")
         self.item_list = []
+        self.filter = ['[마감]', '[中증시 마감]', '[외환마감]', '[외환브리핑]']
 
     def parse(self, response):
         self.browser.get(response.url)
         time.sleep(page_time_delay)
-        html = self.browser.find_element_by_xpath('/html/body/section/div/div/div[1]/div/div[4]/div/div[1]/div[1]/div/div[2]/ul').get_attribute('outerHTML')
+        html = self.browser.find_element_by_xpath('/html/body/section/div/div/div[1]/div/div[4]/div/div[1]/div[1]/div/div[2]').get_attribute('outerHTML')
         selector = Selector(text=html)
-        for news in selector.xpath('//li'):
+        li = selector.xpath('//ul/li')
+        for news in li:
             item = Item()
             item['company'] = 'eDaily'
-            item['title'] = news.xpath('//strong').extract()
-            item['datetime'] = news.xpath('//span[3]/text()').extract()
-            # item['brief'] = news.xpath('div/text()').extract()
-            item['link'] = news.xpath('//a/@href').extract()[0]
-            item['content'] = 'tstest'
-            print('-------item llll--------', item)
-            yield item
 
-    # news_list = response.xpath('/html/body/section')
-        # title = news_list.xpath('//strong').extract()
-        # print('_________news title______-----------------', title)
-        # for news in news_list:
-        #     item = Item()
-        #     item['company'] = 'eDaily'
-        #     item['title'] = news.xpath('//strong').extract()
-        #     item['datetime'] = news.xpath('/a/div/div[2]/div/span[3]/text()').extract()
-        #     # item['brief'] = news.xpath('div/text()').extract()
-        #     # item['link'] = news.xpath('@href').extract()
-        #     print('-------item llll--------', item)
-        #     yield item
+            title = ''
+            indic = False
+            for word in news.xpath('a/div/div/strong').extract():
+                title += word
+            title = title.replace('<strong>', '')
+            title = title.replace('</strong>', '')
+
+            for a_word in self.filter:
+                if a_word in title:
+                    indic = True
+                    break
+            if indic:
+                continue
+            item['content'] = title
+            item['title'] = title + '\n'
+            item['datetime'] = news.xpath('a/div/div/div/span[3]/text()').extract()
+            item['link'] = 'http://www.edaily.co.kr'+news.xpath('a/@href').extract()[0]
+            self.item_list.append(item)
+
+        for a_item in self.item_list:
+            url = a_item['link']
+            self.browser.get(url)
+            time.sleep(page_time_delay)
+            html = self.browser.find_element_by_xpath('//*[@id="article_body"]').get_attribute('outerHTML')
+            a_item['content'] += html
+            yield a_item
+        self.browser.quit()

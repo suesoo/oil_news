@@ -83,7 +83,7 @@ class MySqlPipeline(object):
         content = content.replace('\n\n', '\n')
         content = content.replace('&nbsp;', ' ')
         content = content.replace('&amp;', '')
-        brief = content[:300]
+        brief = content[:150]
         brief += '......'
 
         this_time = datetime.datetime.now().strftime('%Y-%m-%d %H:%M:%S')

@@ -30,7 +30,7 @@ class BloombergSpider(scrapy.Spider):
             item['datetime'] = news.xpath('div[1]/span[2]/time/text()').extract()
             item['brief'] = news.xpath('div[2]/text()').extract()
             item['link'] = news.xpath('h1/a/@href').extract()[0]
-            item['content'] = 'test content'
+            # item['content'] = 'test content'
             self.item_list.append(item)
 
         for a_item in self.item_list:
@@ -171,7 +171,7 @@ class eDailySpider(scrapy.Spider):
                     break
             if indic:
                 continue
-            item['content'] = title
+            # item['content'] = title
             item['title'] = title + '\n'
             item['datetime'] = news.xpath('a/div/div/div/span[3]/text()').extract()
             item['link'] = 'http://www.edaily.co.kr'+news.xpath('a/@href').extract()[0]
